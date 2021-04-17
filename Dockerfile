@@ -1,8 +1,8 @@
-#FROM python:3.8-slim
+FROM python:3.8-slim
 
 #FROM nickgryg/alpine-pandas:3.9.1
 
-FROM ubuntu
+# FROM ubuntu
 
 WORKDIR /birdsongs
 
