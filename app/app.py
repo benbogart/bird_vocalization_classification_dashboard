@@ -19,7 +19,9 @@ import os
 import gunicorn
 
 app = dash.Dash(__name__)
-server = app.server
+port = int(os.environ.get("PORT", 5000))
+# server = app.server
+
 #server = flask.Flask(__name__) # define flask app.server
 
 # model = MODELS['milsed_7block_dense']()
@@ -126,4 +128,8 @@ app.layout = html.Div(
 if __name__ == "__main__":
 
     # gunicorn.run(app, port=8050, host='0.0.0.0')
-    app.run_server(debug=True, port=8000, host='0.0.0.0')
+    # app.run_server(debug=True, port=8000, host='0.0.0.0')
+
+    app.run_server(debug=False,
+                   host="0.0.0.0",
+                   port=port)

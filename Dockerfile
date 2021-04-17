@@ -21,4 +21,4 @@ COPY ./app ./app
 
 WORKDIR ./app
 CMD ["python", "./app.py"]
-# CMD ["gunicorn" "app:server"]
+# CMD ["gunicorn" "app.app:server"]
