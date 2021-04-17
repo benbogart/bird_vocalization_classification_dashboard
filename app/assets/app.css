@@ -1,0 +1,34 @@
+body {
+  background-color: lightblue;
+  color: red;
+  padding: 20px;
+}
+
+.left {
+  max-width:50%;
+  padding: 20px;
+  float:left;
+}
+
+.audio-embed {
+  border: none;
+}
+
+#output {
+  max-width: 50%;
+  display: block;
+}
+
+#upload-data {
+  width: 100%;
+  // height: 60px;
+  line-height: 60px;
+  border-width: 1px;
+  border-style: dashed;
+  border-radius: 5px;
+  text-align: center;
+  margin: 10px;
+}
+li {
+  vertical-align: middle;
+}
