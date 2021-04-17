@@ -15,7 +15,7 @@ RUN apt-get -y install libsndfile1 ffmpeg libavcodec-extra
 
 # RUN pip install python-dateutil pytz>=2011k
 # RUN pip --no-deps pandas
-# RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app ./app
 
