@@ -17,9 +17,6 @@ import io
 import os
 import numpy as np
 
-import tensorflow as tf
-from models import MODELS
-
 import gunicorn
 
 import requests
@@ -28,18 +25,8 @@ app = dash.Dash(__name__)
 port = int(os.environ.get("PORT", 5000))
 # server = app.server
 
+###### MAIN TAB BLOCKS ######
 
-model = MODELS['cnn1_audin_drp_1']()
-weight_file = 'cnn1_audin_drp_1-birdsongs_2_1618153718_0f7f4e95.h5'
-
-stringlist = []
-model.summary(print_fn=lambda x: stringlist.append(x))
-model_summary = "\n".join(stringlist)
-
-with open('resources/data_kag_split_single_label.json', 'r') as f:
-    labels = json.load(f)
-
-label_map = labels['mapping']
 
 predict_text = dcc.Markdown('''
 ### About:
@@ -55,12 +42,6 @@ samples or upload your own to test the prediction and see the results of the mod
 - On the `Explore Results` tab you can dig into the various models created in this project
 and explore the training, validation, and test statistics for each.
 ''')
-
-# XC408484
-# XC124819
-# XC135462
-# XC441497
-#
 
 audio_samples = html.Ul([
     dcc.Markdown('''## or choose a recording below'''),
@@ -153,6 +134,22 @@ app.layout = html.Div(
               Input('upload-data', 'contents'),
               Input('upload-data', 'filename'))
 def predict(btn1, btn2, btn3, contents, filename):
+
+    # importing here improves page load time.
+    import tensorflow as tf
+    from models import MODELS
+
+    model = MODELS['cnn1_audin_drp_1']()
+    weight_file = 'cnn1_audin_drp_1-birdsongs_2_1618153718_0f7f4e95.h5'
+
+    stringlist = []
+    model.summary(print_fn=lambda x: stringlist.append(x))
+    model_summary = "\n".join(stringlist)
+
+    with open('resources/data_kag_split_single_label.json', 'r') as f:
+        labels = json.load(f)
+
+    label_map = labels['mapping']
 
     button_files = {'button1':'XC11464.mp3',
                     'button2':'XC441497.mp3',
