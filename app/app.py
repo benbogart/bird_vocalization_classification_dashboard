@@ -16,6 +16,8 @@ import base64
 import io
 import os
 import numpy as np
+import pandas as pd
+import itertools
 
 import gunicorn
 
@@ -25,8 +27,11 @@ app = dash.Dash(__name__)
 port = int(os.environ.get("PORT", 5000))
 # server = app.server
 
-###### MAIN TAB BLOCKS ######
+# create color loop for plots
+colors = itertools.cycle(['red', 'green', 'blue'])
 
+
+###### MAIN TAB BLOCKS ######
 
 predict_text = dcc.Markdown('''
 ### About:
@@ -112,6 +117,76 @@ predict_block = dcc.Loading(
 type='cube', className='loading'
 )
 
+###### Explore Models Tab ######
+
+explore_header = 'This is the explore models tab 2'
+
+# accuracy_plot = get_accuracy_plot()
+df_metrics = pd.read_pickle('data/df_metrics.pkl')
+
+# def get_test_accuracy_plot():
+#
+#     # value contains model names
+#     fig = go.Figure()
+#     for model_name in value:
+#         # get the last row for a model in case there are more than one
+#         model_stats = df_metrics[df_metrics['model_name'] == model_name].iloc[-1:]
+#         df_acc = model_stats[['model_name',
+#              'categorical_accuracy']].explode('categorical_accuracy').reset_index()
+#
+#         df_val = model_stats[['model_name',
+#              'val_categorical_accuracy']].explode('val_categorical_accuracy').reset_index()
+#
+#         df_plt = pd.concat([df_acc, df_val['val_categorical_accuracy']], axis=1)
+#         df_plt['Epochs'] = range(1, len(df_plt)+1)
+#
+#         color = next(colors)
+#
+#         fig.add_trace(go.Scatter(y=df_plt['categorical_accuracy'],
+#                          x=df_plt['Epochs'],
+#                          name='accuracy: ' + df_plt['model_name'].iloc[0],
+#                          line=dict(color=color, dash='solid')))
+#
+#         fig.add_trace(go.Scatter(y=df_plt['val_categorical_accuracy'],
+#                          x=df_plt['Epochs'],
+#                          name='val accuracy: ' + df_plt['model_name'].iloc[0],
+#                          line=dict(color=color, dash='dash')))
+#
+#         fig.update_yaxes(title={'text':'Accuracy'})
+#         fig.update_xaxes(title={'text':'Epochs'})
+#         fig.update_layout(go.Layout(title="Accuracy vs Validation Accuracy"))
+#
+#
+#     g = dcc.Graph(id='the-graph', figure=fig)
+#     return g
+
+
+
+explore_block = html.Div([
+    # dcc.Dropdown(id='test_accuracy_selector',
+    #              options=[{'label':'Cagegorical Accuracy',
+    #                        'value':'test_categical_acuracy'},
+    #                       {'label':'Top 3 Cagegorical Accuracy',
+    #                        'value':'test_top_3_accuracy'},
+    #                       {'label':'Top 5 Cagegorical Accuracy',
+    #                        'value':'test_top_5_categical_acuracy'}],
+    #              value=['test_categical_acuracy'],
+    #              multi=True
+    # ),
+    dcc.Graph(id='test_accuracy'),
+    dcc.Dropdown(id='model_selector',
+                 options=[{'label':v, 'value':v} for v in df_metrics['model_name'].unique()],
+                 value=['milsed_7block_dense'],
+                 multi=True
+    ),
+    html.Div(id='explore_header'),
+    dcc.Graph(id='train_accuracy'),
+    dcc.Graph(id='val_accuracy'),
+    html.Div(id='accuracy_model_graph')
+])
+
+###### Page Layout ######
+
 app.layout = html.Div(
     [
         html.Div([
@@ -122,7 +197,7 @@ app.layout = html.Div(
             dcc.Tab(label='Prediction Demo',
                     children=predict_block),
             dcc.Tab(label='Explore Models',
-                    children='This is the explore models tab')
+                    children=explore_block)
         ], className='tabs')
     ]
 )
@@ -134,6 +209,9 @@ app.layout = html.Div(
               Input('upload-data', 'contents'),
               Input('upload-data', 'filename'))
 def predict(btn1, btn2, btn3, contents, filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
 
     # importing here improves page load time.
     import tensorflow as tf
@@ -154,10 +232,6 @@ def predict(btn1, btn2, btn3, contents, filename):
     button_files = {'button1':'XC11464.mp3',
                     'button2':'XC441497.mp3',
                     'button3':'XC135462.mp3'}
-
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        raise PreventUpdate
 
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -317,24 +391,105 @@ def get_wavplot(signal):
 
     return graph_block
 
-# def get_wavplot(signal):
-#     fig = make_subplots(rows=2, cols=1)
-#
-#     fig.add_trace(
-#         Go.Scatter(y=signal),
-#         row=1, col=1
-#     )
-#
-#     stft = librosa.stft(signal, n_fft=2048,  hop_length=512)
-#     spectrogram = np.abs(stft)
-#     mel_spectrogram = librosa.amplitude_to_db(spectrogram)
-#
-#     fig.add_trace(
-#         go.Heatmap(z=mel_spectrogram),
-#         row=2, col=1
-#     )
-#
-#     return fig
+###### Explore Model Functions ######
+
+@app.callback(Output('train_accuracy', 'figure'),
+              Output('val_accuracy', 'figure'),
+              Input('model_selector', 'value'))
+def get_accuracy_plot(value):
+
+    # value contains model names
+
+    colors = itertools.cycle(['red', 'green', 'blue'])
+
+    acc_fig = go.Figure()
+    val_fig = go.Figure()
+    for model_name in value:
+        # get the last row for a model in case there are more than one
+        model_stats = df_metrics[df_metrics['model_name'] == model_name].iloc[-1:]
+        df_acc = model_stats[['model_name',
+             'categorical_accuracy']].explode('categorical_accuracy').reset_index()
+
+        df_acc_val = model_stats[['model_name',
+             'val_categorical_accuracy']].explode('val_categorical_accuracy').reset_index()
+
+        df_loss = model_stats[['model_name',
+             'loss']].explode('loss').reset_index()
+
+        df_loss_val = model_stats[['model_name',
+             'val_loss']].explode('val_loss').reset_index()
+
+
+        df_plt = pd.concat([df_acc,
+                            df_acc_val['val_categorical_accuracy'],
+                            df_loss['loss'],
+                            df_loss_val['val_loss']], axis=1)
+        df_plt['Epochs'] = range(1, len(df_plt)+1)
+
+        color = next(colors)
+
+        acc_fig.add_trace(go.Scatter(y=df_plt['categorical_accuracy'],
+                         x=df_plt['Epochs'],
+                         name='accuracy: ' + df_plt['model_name'].iloc[0],
+                         line=dict(color=color, dash='solid')))
+
+        acc_fig.add_trace(go.Scatter(y=df_plt['val_categorical_accuracy'],
+                         x=df_plt['Epochs'],
+                         name='val accuracy: ' + df_plt['model_name'].iloc[0],
+                         line=dict(color=color, dash='dash')))
+
+        acc_fig.update_yaxes(title={'text':'Accuracy'})
+        acc_fig.update_xaxes(title={'text':'Epochs'})
+        acc_fig.update_layout(go.Layout(title="Accuracy vs Validation Accuracy"))
+
+        val_fig.add_trace(go.Scatter(y=df_plt['loss'],
+                         x=df_plt['Epochs'],
+                         name='loss: ' + df_plt['model_name'].iloc[0],
+                         line=dict(color=color, dash='solid')))
+
+        val_fig.add_trace(go.Scatter(y=df_plt['val_loss'],
+                         x=df_plt['Epochs'],
+                         name='val loss: ' + df_plt['model_name'].iloc[0],
+                         line=dict(color=color, dash='dash')))
+
+        val_fig.update_yaxes(title={'text':'Loss'})
+        val_fig.update_xaxes(title={'text':'Epochs'})
+        val_fig.update_layout(go.Layout(title="Loss vs Validation Loss"))
+
+    return acc_fig, val_fig
+
+@app.callback(Output('test_accuracy', 'figure'),
+              Input('test_accuracy', 'id'))
+def get_test_accuracy_plot(values):
+
+    df_plot = df_metrics[['model_name',
+                         'test_categorical_accuracy',
+                         'test_top_3_accuracy',
+                         'test_top_5_accuracy']]
+
+    df_plot.columns = ['Model Name',
+                                 'Categorical Accuracy',
+                                 'Top 3 Categorical Accuracy',
+                                 'Top 5 Categorical Accuracy']
+
+
+
+    df_plot = df_plot.melt(id_vars=['Model Name'],
+                           var_name='Accuracy Metric',
+                           value_vars=['Categorical Accuracy',
+                                          'Top 3 Categorical Accuracy',
+                                          'Top 5 Categorical Accuracy'],
+                           value_name='Accuracy')
+
+
+    fig = px.bar(df_plot, x='Model Name',
+                 y='Accuracy', color='Accuracy Metric',
+                 barmode='group',
+                 title='Test Accuracy by model name')
+
+    return fig
+
+
 if __name__ == "__main__":
 
     # gunicorn.run(app, port=8050, host='0.0.0.0')
