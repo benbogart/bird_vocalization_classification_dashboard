@@ -6,17 +6,23 @@ from dash.dependencies import Input, Output
 from dash.exceptions import PreventUpdate
 
 import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+
 import librosa
 import json
 
 import base64
 import io
 import os
+import numpy as np
 
 import tensorflow as tf
 from models import MODELS
 
 import gunicorn
+
+import requests
 
 app = dash.Dash(__name__)
 port = int(os.environ.get("PORT", 5000))
@@ -36,18 +42,17 @@ with open('resources/data_kag_split_single_label.json', 'r') as f:
 label_map = labels['mapping']
 
 predict_text = dcc.Markdown('''
-# Birdsong Detection
-
+### About:
 This dashboard is a demonstration of the birdsong_detection by Ben Bogart.  You
 view the full code in this
 [github repository](https://github.com/benbogart/birdsong_detection) where there
-is a detailed readme file describing how the project was accomplished.
+is a detailed description of the project.
 
 There are two tabs in this dashboard, predictions and results.
-- This is the `predictions` tab.  Below you can select one of the provided audio
+- This is the `Prediction Demo` tab.  Below you can select one of the provided audio
 samples or upload your own to test the prediction and see the results of the model.
 
-- On the `results` tab you can dig into the various models created in this project
+- On the `Explore Results` tab you can dig into the various models created in this project
 and explore the training, validation, and test statistics for each.
 ''')
 
@@ -110,8 +115,6 @@ Predicion will be made on the last 10 seconds of your file'''),
     )
 ])
 
-
-
 predict_block = dcc.Loading(
     html.Div([
         predict_text,
@@ -125,22 +128,21 @@ predict_block = dcc.Loading(
             ], className="col"),
         ], className='row')
     ], id='main-predict'),
-className='loading'
+type='cube', className='loading'
 )
-
-
-# output_block = dcc.Loading(
-#         html.Div(id='output', children=[
-#         'This is the most spectactularly arrogant origional content of the right side of the page!',
-#         html.Pre(model_summary)]),
-#         fullscreen=True,
-#         style={'opacity': 0.4}
-#     )
 
 app.layout = html.Div(
     [
-        # 'hola'
-        predict_block
+        html.Div([
+            html.H1('Birdsong Detection'),
+            html.P('by Ben Bogart'),
+        ],  id='title'),
+        dcc.Tabs([
+            dcc.Tab(label='Prediction Demo',
+                    children=predict_block),
+            dcc.Tab(label='Explore Models',
+                    children='This is the explore models tab')
+        ], className='tabs')
     ]
 )
 
@@ -152,9 +154,9 @@ app.layout = html.Div(
               Input('upload-data', 'filename'))
 def predict(btn1, btn2, btn3, contents, filename):
 
-    button_files = {'button1':'data/XC11464.mp3',
-                    'button2':'data/XC441497.mp3',
-                    'button3':'data/XC135462.mp3'}
+    button_files = {'button1':'XC11464.mp3',
+                    'button2':'XC441497.mp3',
+                    'button3':'XC135462.mp3'}
 
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -164,27 +166,68 @@ def predict(btn1, btn2, btn3, contents, filename):
 
     if trigger in ['button1', 'button2', 'button3']:
         filename = button_files[trigger]
-        signal, sr =librosa.load(filename)
+        signal, sr =librosa.load(os.path.join('data', filename))
     elif trigger == 'upload-data':
         signal = parse_contents(contents, filename)
 
     # get last 10 seconds of file
     signal = signal[-220500:]
 
+    # load label translation json
+    with open('resources/translation.json', 'r') as f:
+        translation = json.load(f)
 
     # TODO create figure with both melspec and signal
-    fig = px.line(signal)
-    wav_graph = dcc.Graph(id='signal', figure=fig, className='signal')
+    # fig = px.line(signal)
+    # wav_graph = dcc.Graph(id='signal', figure=fig, className='signal')
+
+    # wav_plot = dcc.Graph(id='signal', figure=get_wavplot(signal), className='signal')
+    # get_wavplot(signal)
+
+    graph_block = get_wavplot(signal)
     model.load_weights(os.path.join('data', weight_file))
     pred = model.predict(signal.reshape(1,-1,1))
     print(pred.shape)
     print(type(pred))
     print(pred.argmax())
+    y_pred = pred.argmax()
+
+    images = get_photos(translation['sci_name'][y_pred])
+
+    header_block = html.Ul([
+        html.H1(f"Bird species: {translation['species'][y_pred]}"),
+        html.Li(f"Scientific Name: {translation['sci_name'][y_pred]}"),
+        html.Li([
+            "eBird Code: ",
+            html.A(
+                f"{translation['ebird_code'][y_pred]}",
+                href=f"https://ebird.org/species/{translation['ebird_code'][y_pred]}"
+            )
+        ]),
+        html.Li([
+            'Wikipedia: ',
+            html.A(
+                f"{translation['species'][y_pred]}",
+                href=f"https://en.wikipedia.org/wiki/{translation['species'][y_pred].replace(' ', '_')}"
+            )
+        ]),
+        html.Li(f'Filename: {filename}')
+    ])
+
+    try_again_block = html.Div(
+        html.A(
+            html.Button('Try Again!'),
+            href=''
+        ),
+        className='try-again'
+    )
+
     return [
-            filename,
-            wav_graph,
-            label_map[pred.argmax()],
-            dcc.Markdown('[Try Again!]()')
+            header_block,
+            graph_block,
+            html.Div(images),
+            try_again_block
+            #dcc.Markdown('[Try Again!]()', className='button')
             ]
 
 def parse_contents(contents, filename):
@@ -199,6 +242,102 @@ def parse_contents(contents, filename):
     os.remove(filename)
     return signal
 
+def get_photos(name):
+
+
+    print('Getting photos for ', name)
+    flikr_key = '9ed6feedf4ed3df4f12101958364b9bb'
+
+    query = {
+        'method':'flickr.photos.search',
+        'format':'json',
+        'api_key':flikr_key,
+        'tags':'Setophaga ruticilla',
+        'extras':'description, license, date_upload, date_taken, owner_name, icon_server, original_format, last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, url_s, url_q, url_m, url_n, url_z, url_c, url_l, url_o',
+        'per_page':8,
+        "nojsoncallback":"1",
+        'sort':'relevance'
+    }
+
+    r = requests.get('https://www.flickr.com/services/rest/', params=query)
+
+    if not r.ok:
+        return dcc.Markdown('**Could not load Flickr images, please try again later**')
+
+    r = r.json()
+    images = r['photos']['photo']
+
+    print(f'There are {len(images)} photos to display')
+    img_blocks = []
+    for img in images:
+        img_blocks.append(
+            html.Div([
+                html.A(
+                    html.Img(src=img['url_s']),
+                    href=f"https://flickr.com/photos/{img['owner']}/{img['id']}"
+                ),
+                html.P(
+                    'Image © ' + img['ownername'],
+                    className='caption'
+                )
+
+            ], className='image')
+        )
+
+
+    return img_blocks
+
+def get_wavplot(signal):
+
+    transparent_layout = go.Layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+
+    waveform = px.line(signal)
+    waveform.update_yaxes(title={'text':'magnitude'})
+    waveform.update_xaxes(title={'text':'samples'})
+    waveform.update_layout(transparent_layout)
+    waveform.update_layout(title='Waveform')
+
+    # stft = librosa.stft(signal, n_fft=2048,  hop_length=512)
+    # spectrogram = np.abs(stft)
+    # mel_spectrogram = librosa.amplitude_to_db(spectrogram)
+
+    S = librosa.feature.melspectrogram(signal, sr=22050, n_fft=2048, hop_length=512, n_mels=128)
+    mel_spectrogram = librosa.power_to_db(S, ref=np.max)
+    mspec = px.imshow(mel_spectrogram, aspect='auto', origin='lower')
+    mspec.update_yaxes(title={'text':'mels'})
+    mspec.update_xaxes(title={'text':'windows'})
+    mspec.update_layout(transparent_layout)
+    mspec.update_layout(title='Mel Spectrogram')
+
+    # mspec.update_yaxes(autorange="reversed")
+    graph_block = html.Div([
+        dcc.Graph(id='waveform', figure=waveform, className='col nopad'),
+        dcc.Graph(id='mspec', figure=mspec, className='col nopad')
+    ], className='row pred-plots')
+
+    return graph_block
+
+# def get_wavplot(signal):
+#     fig = make_subplots(rows=2, cols=1)
+#
+#     fig.add_trace(
+#         Go.Scatter(y=signal),
+#         row=1, col=1
+#     )
+#
+#     stft = librosa.stft(signal, n_fft=2048,  hop_length=512)
+#     spectrogram = np.abs(stft)
+#     mel_spectrogram = librosa.amplitude_to_db(spectrogram)
+#
+#     fig.add_trace(
+#         go.Heatmap(z=mel_spectrogram),
+#         row=2, col=1
+#     )
+#
+#     return fig
 if __name__ == "__main__":
 
     # gunicorn.run(app, port=8050, host='0.0.0.0')

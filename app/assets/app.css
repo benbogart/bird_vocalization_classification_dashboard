@@ -2,8 +2,23 @@ body {
   background-color: lightblue;
   color: red;
   padding: 20px;
-  max-width: 1000px;
+  max-width: 960px;
   margin: auto;
+}
+
+#title {
+  padding: 0;
+  margin: 0;
+}
+
+#title h1 {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+#title p {
+  padding-top: 0;
+  margin-top: 0
 }
 
 #audio_samples {
@@ -24,16 +39,73 @@ body {
   hight: 100%;
 }
 
-.loading {
-  opacity: .4;
+body div .nopad {
+  padding:0;
 }
 
-.button {
-  width:100%;
+.loading {
+  opacity: .6;
 }
+
+.try-again {
+  width: 100%;
+  text-align: center;
+}
+
+.pred-plots {
+  height: 350px;
+}
+/*.button {
+  width:100%;
+  border: 1px;
+  border-radius: 20px:
+  padding: 20px;
+  min-width: 50%;
+  background-color: red;
+  text-align: center;
+}*/
+
+/*a.button {
+  -webkit-appearance: button;
+  -moz-appearance: button;
+  appearance: button;
+
+  text-decoration: none;
+  color: initial;
+}*/
+
+.image {
+  display: inline-block;
+  height: 160px;
+  width: 240px;
+  object-fit: cover;
+  overflow: hidden;
+  position: relative
+}
+
+.image a {
+
+}
+
+.image p.caption {
+  padding-bottom: 5px;
+  padding-right:10px;
+  margin: 0;
+  text-shadow: 1px 1px 2px gray;
+  color: white;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+/*.caption {
+  margin-top: -10;
+}*/
+
+
+
 .signal {
-  height:200px;
-  width:50%;
+  height:500px;
+  width:100%;
 }
 #upload-data {
   width: 100%;
