@@ -1,11 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chivo&display=swap');
+
 body {
-  background-color: lightblue;
-  color: red;
+  background-color: #fcfcf7; /* lightblue; */
+  color: #446652;
   padding: 20px;
-  max-width: 960px;
+  max-width: 962px;
   margin: auto;
+  background-repeat: no-repeat;
+  background-image: url("/assets/background-ll.png");
+  background-position: bottom -350px left -450px;
+  background-attachment: fixed;
+  font-family: 'Chivo', sans-serif;
 }
 
+H1, H2, H3, H4, H5 {
+  font-family: 'PT Serif', serif;
+  color: #6c503e;
+}
+
+a {
+  color: #6c503e;
+}
 #title {
   padding: 0;
   margin: 0;
@@ -14,6 +30,7 @@ body {
 #title h1 {
   padding-bottom: 0;
   margin-bottom: 0;
+  color: #6c503e;
 }
 
 #title p {
@@ -55,32 +72,25 @@ body div .nopad {
 .pred-plots {
   height: 350px;
 }
-/*.button {
-  width:100%;
-  border: 1px;
-  border-radius: 20px:
-  padding: 20px;
-  min-width: 50%;
-  background-color: red;
-  text-align: center;
-}*/
 
-/*a.button {
-  -webkit-appearance: button;
-  -moz-appearance: button;
-  appearance: button;
-
-  text-decoration: none;
-  color: initial;
-}*/
-
+.images {
+    background-color: rgba(44,66,52, 0.2);
+    border-radius: 10px;
+    padding-bottom: 20px;
+    margin-bottom: 10px
+}
+.images H3 {
+  padding: 10px;
+  margin-bottom: 0px;
+}
 .image {
   display: inline-block;
   height: 160px;
   width: 240px;
   object-fit: cover;
   overflow: hidden;
-  position: relative
+  position: relative;
+  // background-color: #446652;
 }
 
 .image a {
@@ -92,21 +102,18 @@ body div .nopad {
   padding-right:10px;
   margin: 0;
   text-shadow: 1px 1px 2px gray;
+  text-align: right;
   color: white;
   position: absolute;
   bottom: 0;
   right: 0;
 }
-/*.caption {
-  margin-top: -10;
-}*/
-
-
 
 .signal {
   height:500px;
   width:100%;
 }
+
 #upload-data {
   width: 100%;
   height: 60px;
@@ -121,4 +128,24 @@ body div .nopad {
 
 #wavform {
   display: block;
+}
+
+.tab--selected {
+  border-top: 2px solid #EDCB96 !important;
+  background-color: rgba(255,255,255,0.7) !important;
+  color: #446652 !important;
+}
+
+.tab-content {
+  border-left: 1px solid #d6d6d6;
+  border-right: 1px solid #d6d6d6;
+  border-bottom: 1px solid #d6d6d6;
+  background-color: rgba(255,255,255,0.7);
+  padding: 20px;
+}
+
+.notice {
+  background-color: rgba(237, 203, 150, 0.7);
+  padding: 10px;
+  border-radius: 7px;
 }
