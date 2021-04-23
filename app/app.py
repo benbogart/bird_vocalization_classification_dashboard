@@ -507,12 +507,14 @@ def get_accuracy_plot(models, data_subsets):
                 acc_fig.add_trace(go.Scatter(y=df_plt['categorical_accuracy'],
                                  x=df_plt['Epochs'],
                                  name='<b>Accuracy:</b><br>' + df_plt['model_name'].iloc[0],
-                                 line=dict(color=color, dash='solid')))
+                                 line=dict(color=color, dash='solid'),
+                                 mode='lines'))
 
                 acc_fig.add_trace(go.Scatter(y=df_plt['val_categorical_accuracy'],
                                  x=df_plt['Epochs'],
                                  name='<b>Val. Accccuracy:</b><br>' + df_plt['model_name'].iloc[0],
-                                 line=dict(color=color, dash='dash')))
+                                 line=dict(color=color, dash='dash'),
+                                 mode='lines'))
 
                 # formatting
                 acc_fig.update_yaxes(title={'text':'Accuracy'},
@@ -528,12 +530,14 @@ def get_accuracy_plot(models, data_subsets):
                 loss_fig.add_trace(go.Scatter(y=df_plt['loss'],
                                  x=df_plt['Epochs'],
                                  name='<b>Loss:</b><br>' + df_plt['model_name'].iloc[0],
-                                 line=dict(color=color, dash='solid')))
+                                 line=dict(color=color, dash='solid'),
+                                 mode='lines'))
 
                 loss_fig.add_trace(go.Scatter(y=df_plt['val_loss'],
                                  x=df_plt['Epochs'],
                                  name='<b>Val. Loss:</b><br>' + df_plt['model_name'].iloc[0],
-                                 line=dict(color=color, dash='dash')))
+                                 line=dict(color=color, dash='dash'),
+                                 mode='lines'))
 
                 # formatting
                 loss_fig.update_yaxes(title={'text':'Loss'},
@@ -559,6 +563,6 @@ def get_accuracy_plot(models, data_subsets):
 if __name__ == "__main__":
 
     # run the server
-    app.run_server(debug=False,
+    app.run_server(debug=True,
                    host="0.0.0.0",
                    port=port)
