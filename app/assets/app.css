@@ -5,7 +5,7 @@ body {
   background-color: #fcfcf7; /* lightblue; */
   color: #446652;
   padding: 20px;
-  max-width: 962px;
+  max-width: 1002px;
   margin: auto;
   background-repeat: no-repeat;
   background-image: url("/assets/background-ll.png");
@@ -67,6 +67,12 @@ body div .nopad {
 .try-again {
   width: 100%;
   text-align: center;
+}
+
+.try-again a button {
+  font-size: 1.5em;
+  padding: 10px;
+  border-radius: 10px;
 }
 
 .pred-plots {
@@ -148,4 +154,11 @@ body div .nopad {
   background-color: rgba(237, 203, 150, 0.7);
   padding: 10px;
   border-radius: 7px;
+}
+
+.Select--multi div.Select-value {
+  color: rgb(62,102,82);
+  background-color: rgba(62,102,82,0.08);
+  border-color: rgba(62,102,82,0.08);
+
 }

@@ -18,22 +18,19 @@ import os
 import numpy as np
 import pandas as pd
 import itertools
-
 import gunicorn
-
 import requests
 
 app = dash.Dash(__name__)
 port = int(os.environ.get("PORT", 5000))
-# server = app.server
 
-# create color loop for plots
-#colors = itertools.cycle(['#6c503e', '#446652','#8C93A8', '#EDCB96', '#B5C2B7'])
+# palette
 colors = ['#6c503e', '#446652','#8C93A8', '#EDCB96', '#B5C2B7']
 
 
 ###### MAIN TAB BLOCKS ######
 
+# Front page text
 predict_text = dcc.Markdown('''
 ### About:
 This dashboard is a demonstration of the
@@ -50,6 +47,7 @@ samples or upload your own to test the prediction and see the results of the mod
 and explore the training, validation, and test metrics for each.
 ''')
 
+# Audio spmple selector
 audio_samples = html.Ul([
     dcc.Markdown('''## or choose a recording below'''),
     html.Li([
@@ -88,6 +86,7 @@ audio_samples = html.Ul([
     ]),
 ], id='audio_samples')
 
+# upload user recording block
 upload_sample = html.Div([
     dcc.Markdown('''## Upload your own audio file...
 Predicion will be made on the last 10 seconds of your file'''),
@@ -102,6 +101,7 @@ Predicion will be made on the last 10 seconds of your file'''),
     )
 ])
 
+# block for displaying the prediction
 predict_block = dcc.Loading(
     html.Div([
         predict_text,
@@ -118,16 +118,16 @@ predict_block = dcc.Loading(
 type='cube', className='loading'
 )
 
+
 ###### Explore Models Tab ######
 
-explore_header = 'This is the explore models tab 2'
-
-# accuracy_plot = get_accuracy_plot()
+# load metrics
 df_metrics = pd.read_pickle('data/df_metrics.pkl')
 
-
+# explore frame
 explore_block = html.Div([
     dcc.Graph(id='test_accuracy'),
+    html.H2('Select a model and a dataset below'),
     dcc.Dropdown(id='model_selector',
                  options=[{'label':v, 'value':v} for v in df_metrics['model_name'].unique()],
                  value=['milsed_7block_dense'],
@@ -135,7 +135,7 @@ explore_block = html.Div([
     ),
     dcc.Dropdown(id='data_selector',
                  options=[{'label':v, 'value':v} for v in df_metrics['data_subset'].unique()],
-                 value=['kaggle_full_length_npy_aug'],
+                 value=['all_full_length_npy_aug'],
                  multi=True
     ),
     html.Div(id='explore_header'),
@@ -148,7 +148,7 @@ explore_block = html.Div([
 app.layout = html.Div(
     [
         html.Div([
-            html.H1('Birdsong Detection'),
+            html.H1('Bird Vocalization Classification'),
             html.P('by Ben Bogart'),
         ],  id='title'),
         dcc.Tabs([
@@ -159,6 +159,9 @@ app.layout = html.Div(
         ], className='tabs')
     ]
 )
+
+
+###### Callbacks ######
 
 @app.callback(Output('main-predict', 'children'),
               Input('button1', 'n_clicks'),
@@ -175,25 +178,26 @@ def predict(btn1, btn2, btn3, contents, filename):
     import tensorflow as tf
     from models import MODELS
 
+    # load the model
     model = MODELS['milsed_7block_dense']()
-    weight_file = 'milsed_7block_dense-birdsongs_2_1618597659_27bfc8cd.h5'
+    weight_file = 'milsed_7block_dense-birdsongs_2_1618704934_e5b73727.h5'
+    model.load_weights(os.path.join('data', weight_file))
 
-
-    # stringlist = []
-    # model.summary(print_fn=lambda x: stringlist.append(x))
-    # model_summary = "\n".join(stringlist)
-
+    # Get label mapping
     with open('resources/data_kag_split_single_label.json', 'r') as f:
         labels = json.load(f)
 
     label_map = labels['mapping']
 
+    # Associate files with buttons
     button_files = {'button1':'XC11464.mp3',
                     'button2':'XC441497.mp3',
                     'button3':'XC135462.mp3'}
 
+    # get trigger name
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # set action
     if trigger in ['button1', 'button2', 'button3']:
         filename = button_files[trigger]
         signal, sr =librosa.load(os.path.join('data', filename))
@@ -207,20 +211,9 @@ def predict(btn1, btn2, btn3, contents, filename):
     with open('resources/translation.json', 'r') as f:
         translation = json.load(f)
 
-    graph_block = get_wavplot(signal)
-    model.load_weights(os.path.join('data', weight_file))
+    # get prediction
     pred = model.predict(signal.reshape(1,-1,1))
-    print(pred.shape)
-    print(type(pred))
-    print(pred.argmax())
     y_pred = pred.argmax()
-
-    images = get_photos(translation['sci_name'][y_pred])
-    images_block = html.Div([
-        html.H3('Images from flikr'),
-        html.Div(get_photos(translation['sci_name'][y_pred]))
-        ], className='images'
-    )
 
     header_block = html.Ul([
         html.H1(f"Bird species: {translation['species'][y_pred]}"),
@@ -242,6 +235,18 @@ def predict(btn1, btn2, btn3, contents, filename):
         html.Li(f'Filename: {filename}')
     ])
 
+    # get plots
+    graph_block = get_wavplot(signal)
+
+    # get photos of the predicted bird
+    images = get_photos(translation['sci_name'][y_pred])
+    images_block = html.Div([
+        html.H3('Images from flikr'),
+        html.Div(get_photos(translation['sci_name'][y_pred]))
+        ], className='images'
+    )
+
+    # try again button
     try_again_block = html.Div(
         html.A(
             html.Button('Try Again!'),
@@ -258,22 +263,26 @@ def predict(btn1, btn2, btn3, contents, filename):
             #dcc.Markdown('[Try Again!]()', className='button')
             ]
 
+# Load audio file
 def parse_contents(contents, filename):
     content_type, content_string = contents.split(',')
 
+    # decode file sent over internet and write to disk
     decoded = base64.b64decode(content_string)
     with open(filename, "wb") as f:
         f.write(decoded)
 
+    # load file
     signal, sr = librosa.load(filename)
 
+    # delete the file to save space
     os.remove(filename)
+
     return signal
 
 def get_photos(name):
 
-
-    print('Getting photos for ', name)
+    # api key
     flikr_key = '9ed6feedf4ed3df4f12101958364b9bb'
 
     query = {
@@ -287,15 +296,18 @@ def get_photos(name):
         'sort':'relevance'
     }
 
+    # query the api
     r = requests.get('https://www.flickr.com/services/rest/', params=query)
 
+    # error handling
     if not r.ok:
         return dcc.Markdown('**Could not load Flickr images, please try again later**')
 
+    # parse response and get images
     r = r.json()
     images = r['photos']['photo']
 
-    print(f'There are {len(images)} photos to display')
+    # create image block
     img_blocks = []
     for img in images:
         img_blocks.append(
@@ -317,36 +329,38 @@ def get_photos(name):
 
 def get_wavplot(signal):
 
+    # layout vars for transparent background
     transparent_layout = go.Layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)'
     )
 
+    # plot wavform
     waveform = px.line(signal, color_discrete_sequence=[colors[1]])
+
+    # format
     waveform.update_yaxes(title={'text':'magnitude'})
     waveform.update_xaxes(title={'text':'samples'})
     waveform.update_layout(transparent_layout,
                            title='Waveform',
                            showlegend=False,
                            font = {'color':colors[0]})
-    # waveform.update_layout(title='Waveform')
-    # waveform.update_layout(showlegend=False)
 
-    # stft = librosa.stft(signal, n_fft=2048,  hop_length=512)
-    # spectrogram = np.abs(stft)
-    # mel_spectrogram = librosa.amplitude_to_db(spectrogram)
-
+    # Get Mel Spectrogram
     S = librosa.feature.melspectrogram(signal, sr=22050, n_fft=2048, hop_length=512, n_mels=128)
     mel_spectrogram = librosa.power_to_db(S, ref=np.max)
+
+    # plot mel spectrogram
     mspec = px.imshow(mel_spectrogram, aspect='auto', origin='lower')
+
+    #format
     mspec.update_yaxes(title={'text':'mels'})
     mspec.update_xaxes(title={'text':'windows'})
     mspec.update_layout(transparent_layout,
                         title='Mel Spectrogram',
                         font = {'color':colors[0]})
-    # mspec.update_layout(title='Mel Spectrogram')
 
-    # mspec.update_yaxes(autorange="reversed")
+    # create graph block
     graph_block = html.Div([
         dcc.Graph(id='waveform', figure=waveform, className='col nopad'),
         dcc.Graph(id='mspec', figure=mspec, className='col nopad')
@@ -399,6 +413,7 @@ def get_test_accuracy_plot(values):
                  color_discrete_sequence=colors,
                  title='Test Accuracy by model name')
 
+    # formatting
     fig.update_layout(
         legend=dict(
             yanchor="top",
@@ -426,28 +441,35 @@ def get_test_accuracy_plot(values):
               Input('model_selector', 'value'),
               Input('data_selector', 'value'))
 def get_accuracy_plot(models, data_subsets):
-    # value contains model names
 
+    # Empty selector message
     if len(models) == 0 or len(data_subsets) == 0:
         return html.Div('Please select a model above', className='notice')
 
+    # Creat plots
     acc_fig = go.Figure()
     loss_fig = go.Figure()
+
+    # create palette iterator so we dont run out of colors
     iter_colors = itertools.cycle(['#6c503e', '#446652','#8C93A8',
                                    '#EDCB96', '#B5C2B7'])
 
     # maintain count of number of models displayed
     model_count = 0
 
+    # loop through model/data combinations
     for model_name in models:
         for data in data_subsets:
 
+            # load stats for this model
             model_stats = df_metrics[(df_metrics['model_name'] == model_name) &
                                      (df_metrics['data_subset'] == data)]
 
+            # If the datafram is empty this combination doesn't exist, skip
             if len(model_stats) > 0:
                 model_count += 1
 
+                # build dataframe for accuracy
                 df_acc = model_stats[[
                     'model_name',
                     'categorical_accuracy',
@@ -455,22 +477,22 @@ def get_accuracy_plot(models, data_subsets):
                 ]].explode(
                     'categorical_accuracy'
                 ).reset_index()
-                #df_acc.index = pd.Series(range(1, len(df_acc) + 1), name='Epochs')
-                #df_acc['model'] = best_model['model_name'] + '/' + best_model['data_subset']
 
+                # validation accuracy df
                 df_acc_val = model_stats[[
                     'model_name', 'val_categorical_accuracy'
                 ]].explode('val_categorical_accuracy').reset_index()
 
 
-
+                # loss df
                 df_loss = model_stats[['model_name',
                      'loss']].explode('loss').reset_index()
 
+                # validation loss df
                 df_loss_val = model_stats[['model_name',
                      'val_loss']].explode('val_loss').reset_index()
 
-
+                # concat DataFrames
                 df_plt = pd.concat([df_acc,
                                     df_acc_val['val_categorical_accuracy'],
                                     df_loss['loss'],
@@ -478,9 +500,10 @@ def get_accuracy_plot(models, data_subsets):
                 df_plt['Epochs'] = range(1, len(df_plt)+1)
                 df_plt['model_name'] = df_plt['model_name'] + '<br>' + df_plt['data_subset']
 
-
+                # Get next line color
                 color = next(iter_colors)
 
+                # Plot Accuracy
                 acc_fig.add_trace(go.Scatter(y=df_plt['categorical_accuracy'],
                                  x=df_plt['Epochs'],
                                  name='<b>Accuracy:</b><br>' + df_plt['model_name'].iloc[0],
@@ -491,6 +514,7 @@ def get_accuracy_plot(models, data_subsets):
                                  name='<b>Val. Accccuracy:</b><br>' + df_plt['model_name'].iloc[0],
                                  line=dict(color=color, dash='dash')))
 
+                # formatting
                 acc_fig.update_yaxes(title={'text':'Accuracy'},
                                      gridcolor='rgba(0,0,0,0.2)')
                 acc_fig.update_xaxes(title={'text':'Epochs'},
@@ -500,6 +524,7 @@ def get_accuracy_plot(models, data_subsets):
                                       paper_bgcolor='rgba(0,0,0,0)',
                                       plot_bgcolor='rgba(0,0,0,0)')
 
+                # plot loss
                 loss_fig.add_trace(go.Scatter(y=df_plt['loss'],
                                  x=df_plt['Epochs'],
                                  name='<b>Loss:</b><br>' + df_plt['model_name'].iloc[0],
@@ -510,6 +535,7 @@ def get_accuracy_plot(models, data_subsets):
                                  name='<b>Val. Loss:</b><br>' + df_plt['model_name'].iloc[0],
                                  line=dict(color=color, dash='dash')))
 
+                # formatting
                 loss_fig.update_yaxes(title={'text':'Loss'},
                                       gridcolor='rgba(0,0,0,0.2)')
                 loss_fig.update_xaxes(title={'text':'Epochs'},
@@ -521,85 +547,18 @@ def get_accuracy_plot(models, data_subsets):
 
 
     if model_count > 0:
+        # Return it if there is anythign to display
         children = [dcc.Graph(id='train_accuracy', figure=acc_fig),
                     dcc.Graph(id='val_accuracy', figure=loss_fig)]
     else:
+        # Warning if there is nothing to display
         children = [html.Div('No models match your search', className='notice')]
 
     return children
 
-
-
-def get_accuracy_plot_bak(value):
-
-    # value contains model names
-
-    colors = itertools.cycle(['red', 'green', 'blue'])
-
-    acc_fig = go.Figure()
-    val_fig = go.Figure()
-    for model_name in value:
-        # get the last row for a model in case there are more than one
-        model_stats = df_metrics[df_metrics['model_name'] == model_name].iloc[-1:]
-        df_acc = model_stats[['model_name',
-             'categorical_accuracy']].explode('categorical_accuracy').reset_index()
-
-        df_acc_val = model_stats[['model_name',
-             'val_categorical_accuracy']].explode('val_categorical_accuracy').reset_index()
-
-        df_loss = model_stats[['model_name',
-             'loss']].explode('loss').reset_index()
-
-        df_loss_val = model_stats[['model_name',
-             'val_loss']].explode('val_loss').reset_index()
-
-
-        df_plt = pd.concat([df_acc,
-                            df_acc_val['val_categorical_accuracy'],
-                            df_loss['loss'],
-                            df_loss_val['val_loss']], axis=1)
-        df_plt['Epochs'] = range(1, len(df_plt)+1)
-
-        color = next(colors)
-
-        acc_fig.add_trace(go.Scatter(y=df_plt['categorical_accuracy'],
-                         x=df_plt['Epochs'],
-                         name='accuracy: ' + df_plt['model_name'].iloc[0],
-                         line=dict(color=color, dash='solid')))
-
-        acc_fig.add_trace(go.Scatter(y=df_plt['val_categorical_accuracy'],
-                         x=df_plt['Epochs'],
-                         name='val accuracy: ' + df_plt['model_name'].iloc[0],
-                         line=dict(color=color, dash='dash')))
-
-        acc_fig.update_yaxes(title={'text':'Accuracy'})
-        acc_fig.update_xaxes(title={'text':'Epochs'})
-        acc_fig.update_layout(go.Layout(title="Accuracy vs Validation Accuracy"))
-
-        val_fig.add_trace(go.Scatter(y=df_plt['loss'],
-                         x=df_plt['Epochs'],
-                         name='loss: ' + df_plt['model_name'].iloc[0],
-                         line=dict(color=color, dash='solid')))
-
-        val_fig.add_trace(go.Scatter(y=df_plt['val_loss'],
-                         x=df_plt['Epochs'],
-                         name='val loss: ' + df_plt['model_name'].iloc[0],
-                         line=dict(color=color, dash='dash')))
-
-        val_fig.update_yaxes(title={'text':'Loss'})
-        val_fig.update_xaxes(title={'text':'Epochs'})
-        val_fig.update_layout(go.Layout(title="Loss vs Validation Loss"))
-
-    return acc_fig, val_fig
-
-
-
-
 if __name__ == "__main__":
 
-    # gunicorn.run(app, port=8050, host='0.0.0.0')
-    # app.run_server(debug=True, port=8000, host='0.0.0.0')
-
-    app.run_server(debug=True,
+    # run the server
+    app.run_server(debug=False,
                    host="0.0.0.0",
                    port=port)
